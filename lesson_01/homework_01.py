@@ -86,3 +86,4 @@ book_2 = book_1 +2
 book_3 = (book_1 + book_2) // 2
 total_price = book_1 + book_2 + book_3
 print("Всі книжки коштують:", total_price, "грн")
+# Ready for check
