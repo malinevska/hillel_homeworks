@@ -5,7 +5,7 @@ from os.path import abspath, join, dirname, split
 
 sys.path.append("/randominfo/")
 from random import randint, choice, sample, randrange
-from datetime import datetime, timezone
+from datetime import datetime, timezone # Added `timezone` to support modern Python standards
 from PIL import Image, ImageDraw, ImageFont
 from math import ceil
 
@@ -78,23 +78,28 @@ def get_gender(first_name):
 
 
 def get_country(first_name=None):
-    countryFile = csv.reader(open(full_path('data.csv'), 'r'))
-    country = ""
-    if first_name != None:
-        for data in countryFile:
-            if data[0] != '' and data[0] == first_name:
-                country = data[3]
-                break
-        if country == "":
-            print("Specified user data is not available. Tip: Generate random country.")
-    else:
-        filteredData = []
-        for data in countryFile:
-            if data[12] != '':
-                filteredData.append(data[12])
-        country = choice(filteredData)
-    return country
-
+    # The logic has been completely revised.
+    # In the original version, the function searched for a country in the CSV file by name, but the table does not contain such a column.
+    # This caused errors in the console. Now the country is selected from a list.
+    my_countries = ['Ukraine', 'USA', 'Germany', 'Canada', 'Poland', 'UK', 'France', 'Japan', 'Australia', 'Spain']
+    return choice(my_countries)
+    #OLD CODE (COMMENTED OUT):
+    # countryFile = csv.reader(open(full_path('data.csv'), 'r'))
+    # country = ""
+    # if first_name != None:
+    #     for data in countryFile:
+    #         if data[0] != '' and data[0] == first_name:
+    #             country = data[3]
+    #             break
+    #     if country == "":
+    #         print("Specified user data is not available. Tip: Generate random country.")
+    # else:
+    #     filteredData = []
+    #     for data in countryFile:
+    #         if data[12] != '':
+    #             filteredData.append(data[12])
+    #     country = choice(filteredData)
+    # return country
 
 def get_full_name(gender=None):
     return get_first_name(gender) + " " + get_last_name()
@@ -250,6 +255,8 @@ def get_date(tstamp=None, _format="%d %b, %Y"):
     else:
         if type(tstamp).__name__ != 'int':
             raise ValueError("Timestamp must be an integer.")
+    # Added tz=timezone.utc
+    # To avoid “naive datetime” errors in newer versions of Python.
     return  datetime.fromtimestamp(tstamp, tz=timezone.utc).strftime(_format)
 
 
@@ -281,21 +288,26 @@ def get_birthdate(startAge=None, endAge=None, _format="%d %b, %Y"):
 
 def get_address():
     full_addr = []
-    addrParam = ['street', 'landmark', 'area', 'city', 'state', 'country', 'pincode']
-    for i in range(5, 12):
+    addrParam = ['street', 'landmark', 'area', 'city', 'state', 'pincode']
+    # The range (4, 11) is used instead of (5, 12)
+    # The address data in CSV file is offset.
+    # The new range allows the city and ZIP code to be read correctly.
+    for i in range(4, 11):
         addrFile = csv.reader(open(full_path('data.csv'), 'r'))
         allAddrs = []
         for addr in addrFile:
             try:
                 if addr[i] != '':
                     allAddrs.append(addr[i])
-            except IndexError:
+            except IndexError: # Added a specific column access error
                 pass
         if allAddrs:
             full_addr.append(choice(allAddrs))
         else:
             full_addr.append("N/A")
     full_addr = dict(zip(addrParam, full_addr))
+    # Temporary entry for the country as N/A (will be overwritten in the Person class)
+    full_addr['country'] = "N/A"
     return full_addr
 
 
@@ -303,8 +315,14 @@ def get_hobbies():
     hobbiesFile = csv.reader(open(full_path('data.csv'), 'r'))
     allHobbies = []
     for data in hobbiesFile:
-        if data[4] != '':
-            allHobbies.append(data[4])
+        try:
+            # Index [3] is used instead of [4], and a check for len(data) has been added
+            # In the original, the function was retrieving addresses instead of hobbies.
+            # Now it retrieves the correct column.
+            if len(data) > 3 and data[3] != '':
+                allHobbies.append(data[3])
+        except IndexError:
+            pass
     hobbies = []
     for _ in range(1, randint(2, 6)):
         hobbies.append(choice(allHobbies))
@@ -325,6 +343,11 @@ class Person:
         self.paswd = random_password()
         self.hobbies = get_hobbies()
         self.address = get_address()
+
+        # Added country synchronization
+        # In the original version, the country in the profile did not match the one in the address book.
+        self.address['country'] = self.country
+
         self.customAttr = {}
 
     def set_attr(self, attr_name, value=None):
